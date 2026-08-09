@@ -94,7 +94,7 @@ export default {
 
   async mounted() {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/test`)
+      const response = await fetch('http://127.0.0.1:8000/api/test')
       const data = await response.json()
 
       this.message = data.message
