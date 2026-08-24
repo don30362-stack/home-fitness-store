@@ -24,3 +24,8 @@ export interface Product {
     category: ProductCategory
     images: ProductImage[]
 }
+
+export interface ProductQueryParams{
+    category_id?: number
+    parent_category_id?: number
+}
