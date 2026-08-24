@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 
-import { getProducts } from '@/services/productService';
-import type { Product } from '@/types/product';
+import { getProducts } from '@/services/productService'
+import type { Product } from '@/types/product'
 
 const products = ref<Product[]>([])
 const isLoading = ref(true)
 const errorMessage = ref('')
 
 const fetchProducts = async () => {
-    try{
+    try {
         products.value = await getProducts()
-    }catch(error) {
+    } catch (error) {
         console.error(error)
         errorMessage.value = '商品載入失敗'
     } finally {
@@ -19,7 +19,7 @@ const fetchProducts = async () => {
     }
 }
 
-onMounted(() => {fetchProducts()})
+onMounted(() => { fetchProducts() })
 
 </script>
 
@@ -34,7 +34,14 @@ onMounted(() => {fetchProducts()})
         <div v-else>
             <ul>
                 <li v-for="product in products" :key="product.id">
-                    {{ product.name }}-NT${{ Number(product.price).toLocaleString('zh-TW') }}
+                    <RouterLink :to="{
+                        name: 'product-detail',
+                        params: { id: product.id }
+                    }">
+                        {{ product.name }}
+                    </RouterLink>
+                    -
+                    NT${{ Number(product.price).toLocaleString('zh-TW') }}
                 </li>
             </ul>
         </div>
