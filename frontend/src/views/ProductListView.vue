@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 
+import ProductCard from '@/components/product/ProductCard.vue';
 import { getProducts } from '@/services/productService'
 import type { Product } from '@/types/product'
 
@@ -31,19 +32,16 @@ onMounted(() => { fetchProducts() })
 
         <p v-else-if="errorMessage" class="text-danger">{{ errorMessage }}</p>
 
-        <div v-else>
-            <ul>
-                <li v-for="product in products" :key="product.id">
-                    <RouterLink :to="{
-                        name: 'product-detail',
-                        params: { id: product.id }
-                    }">
-                        {{ product.name }}
-                    </RouterLink>
-                    -
-                    NT${{ Number(product.price).toLocaleString('zh-TW') }}
-                </li>
-            </ul>
+        <div v-else-if="products.length === 0">
+            <p class="text-muted">
+                目前沒有商品。
+            </p>
+        </div>
+
+        <div v-else class="row g-4">
+            <div v-for="product in products" :key="product.id" class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                <ProductCard :product="product"/>
+            </div>
         </div>
     </div>
 </template>

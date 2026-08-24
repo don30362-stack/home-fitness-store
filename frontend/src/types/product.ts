@@ -6,6 +6,7 @@ export interface ProductCategory {
 export interface ProductImage {
     id: number
     image_path: string
+    image_url: string
     image_type: string
     is_primary: boolean
     sort_order: number
