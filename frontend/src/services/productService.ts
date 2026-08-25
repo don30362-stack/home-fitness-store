@@ -6,7 +6,7 @@ export const getProducts = async (
     params?: ProductQueryParams
 ): Promise<Product[]> => {
     const response = await api.get<ApiResponse<Product[]>>('/products', {
-        params,
+        params:params
     })
 
     return response.data.data
