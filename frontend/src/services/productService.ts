@@ -1,9 +1,14 @@
 import api from '@/services/api'
 import type { ApiResponse } from '@/types/api'
-import type { Product } from '@/types/product'
+import type { Product, ProductQueryParams } from '@/types/product'
 
-export const getProducts = async (): Promise<Product[]> => {
-    const response = await api.get<ApiResponse<Product[]>>('/products')
+export const getProducts = async (
+    params?: ProductQueryParams
+): Promise<Product[]> => {
+    const response = await api.get<ApiResponse<Product[]>>('/products', {
+        params,
+    })
+
     return response.data.data
 }
 
