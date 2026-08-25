@@ -25,7 +25,7 @@ export interface Product {
     images: ProductImage[]
 }
 
-export interface ProductQueryParams{
+export interface ProductQueryParams {
     category_id?: number
     parent_category_id?: number
 }
