@@ -55,7 +55,13 @@ class ProductController extends Controller
 
     public function show($id)
     {
-        $product = Product::with(['category', 'images'])->findOrFail($id);
+        $product = Product::with(['category', 'images'])->find($id);
+
+        if (!$product) {
+            return response()->json([
+                'message' => '商品不存在'
+            ], 404);
+        }
 
         return new ProductResource($product);
     }
