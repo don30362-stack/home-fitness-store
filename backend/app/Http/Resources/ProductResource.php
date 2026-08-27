@@ -23,12 +23,16 @@ class ProductResource extends JsonResource
             'description' => $this->description,
             'stock' => $this->stock,
             'status' => $this->status,
-            'category' =>[
-                'id' => $this->category?->id,
-                'name' => $this->category?->name,
-            ],
+            
+            'category' => new CategoryResource(
+                $this->whenLoaded('category')
+            ),
 
             'images' => ProductImageResource::collection($this->whenLoaded('images')),
+
+            'specifications' => ProductSpecificationResource::collection($this->whenLoaded('specifications')),
+
+            'variants' => ProductVariantResource::collection($this->whenLoaded('variants'))
         ];
     }
 }

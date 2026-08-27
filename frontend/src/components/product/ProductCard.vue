@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import type { Product } from '@/types/product';
+import type { ProductListItem } from '@/types/product';
 
-const props = defineProps<{ product: Product }>()
+const props = defineProps<{ product: ProductListItem }>()
 
 const imageLoadFailed = ref(false)
 

@@ -6,10 +6,10 @@ import axios from 'axios'
 import ProductCard from '@/components/product/ProductCard.vue'
 import ProductCategoryNav from '@/components/product/ProductCategoryNav.vue'
 import { getProducts } from '@/services/productService'
-import type { Product } from '@/types/product'
+import type { ProductListItem } from '@/types/product'
 import type { ApiErrorResponse } from '@/types/api'
 
-const products = ref<Product[]>([])
+const products = ref<ProductListItem[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const route = useRoute()

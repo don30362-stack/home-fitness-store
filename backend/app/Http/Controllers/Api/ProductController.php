@@ -55,7 +55,9 @@ class ProductController extends Controller
 
     public function show($id)
     {
-        $product = Product::with(['category', 'images'])->find($id);
+        $product = Product::with(['category', 'images', 'specifications', 'variants',])
+            ->where('status', 'active')
+            ->find($id);
 
         if (!$product) {
             return response()->json([
@@ -64,5 +66,28 @@ class ProductController extends Controller
         }
 
         return new ProductResource($product);
+    }
+
+    public function related($id)
+    {
+        $product = Product::query()
+            ->where('status', 'active')
+            ->find($id);
+
+        if (!$product) {
+            return response()->json([
+                'message' => '商品不存在'
+            ], 404);
+        }
+
+        $relatedProducts = Product::query()
+            ->with(['category', 'images'])
+            ->where('status', 'active')
+            ->where('category_id', $product->category_id)
+            ->where('id', '!=', $product->id)
+            ->limit(4)
+            ->get();
+
+        return ProductResource::collection($relatedProducts);
     }
 }

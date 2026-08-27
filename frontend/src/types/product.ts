@@ -12,7 +12,22 @@ export interface ProductImage {
     sort_order: number
 }
 
-export interface Product {
+export interface ProductSpecification {
+    id: number
+    spec_name: string
+    spec_value: string
+    sort_order: number
+}
+
+export interface ProductVariant {
+    id: number
+    option_name: string
+    option_value: string
+    stock: number
+    status: string
+}
+
+export interface ProductListItem {
     id: number
     product_code: string
     name: string
@@ -23,6 +38,11 @@ export interface Product {
     status: string
     category: ProductCategory
     images: ProductImage[]
+}
+
+export interface Product extends ProductListItem {
+    specifications: ProductSpecification[]
+    variants: ProductVariant[]
 }
 
 export interface ProductQueryParams {
