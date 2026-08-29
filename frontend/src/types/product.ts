@@ -45,7 +45,16 @@ export interface Product extends ProductListItem {
     variants: ProductVariant[]
 }
 
+export type ProductSort = 'price_asc' | 'price_desc'
+
 export interface ProductQueryParams {
+    search?: string
     category_id?: number
     parent_category_id?: number
+    min_price?: number
+    max_price?: number
+    sort?: ProductSort
+    page?: number
 }
+
+

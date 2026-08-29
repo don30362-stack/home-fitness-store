@@ -1,15 +1,15 @@
 import api from '@/services/api'
-import type { ApiResponse } from '@/types/api'
+import type { ApiResponse, PaginatedApiResponse } from '@/types/api'
 import type { Product, ProductListItem, ProductQueryParams } from '@/types/product'
 
 export const getProducts = async (
     params?: ProductQueryParams
-): Promise<ProductListItem[]> => {
-    const response = await api.get<ApiResponse<ProductListItem[]>>('/products', {
+): Promise<PaginatedApiResponse<ProductListItem>> => {
+    const response = await api.get<PaginatedApiResponse<ProductListItem>>('/products', {
         params:params
     })
 
-    return response.data.data
+    return response.data
 }
 
 export const getProductById = async (id: number | string): Promise<Product> => {

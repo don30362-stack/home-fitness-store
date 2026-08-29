@@ -15,7 +15,7 @@ class ProductSeeder extends Seeder
     {
         $categories = Category::whereNotNull('parent_id')->get();
 
-        for($i = 0; $i < 12; $i++) {
+        for($i = 0; $i < 24; $i++) {
             Product::factory()->create([
                 'category_id' => $categories->random()->id,
             ]);
