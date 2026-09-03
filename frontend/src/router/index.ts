@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { useAuthStore } from '@/stores/auth'
+
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import HomeView from '@/views/HomeView.vue'
 import AboutView from '@/views/AboutView.vue'
@@ -49,6 +51,9 @@ const router = createRouter({
           path: 'checkout',
           name: 'checkout',
           component: CheckoutView,
+          meta: {
+            requiresAuth: true,
+          },
         },
         {
           path: 'login',
@@ -64,6 +69,9 @@ const router = createRouter({
           path: 'member',
           name: 'member',
           component: MemberView,
+          meta: {
+            requiresAuth: true,
+          },
         },
       ],
     },
@@ -73,6 +81,19 @@ const router = createRouter({
       component: NotFoundView,
     }
   ],
+})
+
+router.beforeEach((to) => {
+  const authStore = useAuthStore()
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    return {
+      name: 'login',
+      query: {
+        redirect: to.fullPath,
+      },
+    }
+  }
 })
 
 export default router

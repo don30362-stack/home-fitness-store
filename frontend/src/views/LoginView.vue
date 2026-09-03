@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from 'axios';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useAuthStore } from '@/stores/auth';
@@ -14,6 +14,10 @@ const password = ref('');
 
 const isSubmitting = ref(false);
 const errorMessage = ref('');
+
+const isRegistered = computed(() => {
+    return route.query.registered === '1'
+});
 
 const handleLogin = async () => {
     if (isSubmitting.value) {
@@ -50,6 +54,8 @@ const handleLogin = async () => {
             <div class="col-12 col-md-8 col-lg-5">
                 <h1 class="h2 mb-4 text-center">會員登入</h1>
 
+                <div v-if="isRegistered" class="alert alert-success" role="alert">會員註冊成功，請登入。</div>
+
                 <div v-if="errorMessage" class="alert alert-danger" role="alert">
                     {{ errorMessage }}
                 </div>
@@ -74,7 +80,7 @@ const handleLogin = async () => {
 
                 <p class="text-center mt-4 mb-0">
                     還沒有會員帳號？
-                    <RouterLink to="/register">
+                    <RouterLink :to="{ name: 'register' }">
                         立即註冊
                     </RouterLink>
                 </p>

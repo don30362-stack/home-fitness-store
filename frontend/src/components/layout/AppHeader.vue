@@ -1,5 +1,29 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { ref } from 'vue';
+import { RouterLink, useRouter } from 'vue-router'
+
+import { useAuthStore } from '@/stores/auth';
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+const isLoggingOut = ref(false)
+
+const handleLogout = async () => {
+    if (isLoggingOut.value) {
+        return
+    }
+
+    isLoggingOut.value = true
+
+    try {
+        await authStore.logout()
+
+        await router.push({ name: 'home' })
+    } finally {
+        isLoggingOut.value = false
+    }
+}
 </script>
 
 <template>
@@ -11,21 +35,34 @@ import { RouterLink } from 'vue-router'
                 </RouterLink>
 
                 <div class="navbar-nav ms-auto">
-                    <RouterLink class="nav-link" :to="{name:'home'}">
+                    <RouterLink class="nav-link" :to="{ name: 'home' }">
                         首頁
                     </RouterLink>
-                    <RouterLink class="nav-link" :to="{name:'products'}">
+                    <RouterLink class="nav-link" :to="{ name: 'products' }">
                         商品
                     </RouterLink>
-                    <RouterLink class="nav-link" :to="{name:'about'}">
+                    <RouterLink class="nav-link" :to="{ name: 'about' }">
                         品牌介紹
                     </RouterLink>
-                    <RouterLink class="nav-link" :to="{name:'cart'}">
+                    <RouterLink class="nav-link" :to="{ name: 'cart' }">
                         購物車
                     </RouterLink>
-                    <RouterLink class="nav-link" :to="{name:'login'}">
-                        登入
-                    </RouterLink>
+
+                    <template v-if="authStore.isAuthenticated">
+                        <RouterLink class="nav-link" :to="{ name: 'member' }">
+                            {{ authStore.currentUser?.name }}
+                        </RouterLink>
+
+                        <button type="button" class="nav-link btn btn-link" :disabled="isLoggingOut"
+                            @click="handleLogout">
+                            {{ isLoggingOut ? '登出中...' : '登出' }}
+                        </button>
+                    </template>
+
+                    <template v-else>
+                        <RouterLink class="nav-link" :to="{ name: 'login' }">登入</RouterLink>
+                        <RouterLink class="nav-link" :to="{ name: 'register' }">註冊</RouterLink>
+                    </template>
                 </div>
             </div>
         </nav>
