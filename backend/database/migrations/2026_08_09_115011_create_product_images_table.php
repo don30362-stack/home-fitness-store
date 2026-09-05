@@ -15,18 +15,19 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('product_id')
-            ->constrained('products');
+                ->constrained('products')
+                ->cascadeOnDelete();
 
             $table->string('image_path', 255);
 
             $table->string('image_type', 20)
-            ->default('gallery');
+                ->default('gallery');
 
             $table->boolean('is_primary')
-            ->default(false);
+                ->default(false);
 
             $table->unsignedInteger('sort_order')
-            ->default(0);
+                ->default(0);
 
             $table->timestamps();
         });

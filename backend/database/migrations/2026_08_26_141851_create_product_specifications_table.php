@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('product_id')
-                ->constrained('products');
+                ->constrained('products')
+                ->cascadeOnDelete();
 
             $table->string('spec_name', 100);
 

@@ -18,7 +18,8 @@ return new class extends Migration
                 ->unique();
 
             $table->foreignId('category_id')
-                ->constrained('categories');
+                ->constrained('categories')
+                ->restrictOnDelete();
 
             $table->string('name', 150);
 

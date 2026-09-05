@@ -16,7 +16,8 @@ return new class extends Migration
 
             $table->foreignId('parent_id')
                 ->nullable()
-                ->constrained('categories');
+                ->constrained('categories')
+                ->restrictOnDelete();
 
             $table->string('name', 100);
 
