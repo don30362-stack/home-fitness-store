@@ -13,7 +13,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CategoryController;
-
+use App\Http\Controllers\Api\CityController;
+use App\Models\City;
 
 Route::get('/test', function () {
     return response()->json([
@@ -26,6 +27,10 @@ Route::get('/products/{id}/related', [ProductController::class, 'related']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 
 Route::get('/categories', [CategoryController::class, 'index']);
+
+Route::get('/cities', [CityController::class, 'index']);
+Route::get('/cities/{cityId}/districts', [CityController::class, 'districts'])
+    ->whereNumber('cityId');
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
