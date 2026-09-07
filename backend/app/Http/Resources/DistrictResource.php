@@ -18,6 +18,10 @@ class DistrictResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'postal_code' => $this->postal_code,
+
+            'city' => new CityResource(
+                $this->whenLoaded('city')
+            ),
         ];
     }
 }
