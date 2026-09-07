@@ -12,6 +12,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CityController;
 use App\Models\City;
@@ -36,6 +37,9 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/me', [ProfileController::class, 'show']);
+    Route::patch('/me', [ProfileController::class, 'update']);
+    Route::patch('/me/password', [ProfileController::class, 'updatePassword']);
+
     Route::post('/logout', [AuthController::class, 'logout']);
 });

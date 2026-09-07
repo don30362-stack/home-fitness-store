@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\LoginRequest;
+use App\Http\Resources\UserResource;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
@@ -26,16 +27,12 @@ class AuthController extends Controller
 
         $user->refresh();
 
-        return response()->json([
-            'message' => '會員註冊成功',
-            'data' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'status' => $user->status,
-            ]
-        ], 201);
+        return (new UserResource($user))
+            ->additional([
+                'message' => '會員註冊成功',
+            ])
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -60,31 +57,11 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return response()->json([
-            'message' => '會員登入成功',
-            'data' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'status' => $user->status,
-            ]
-        ]);
-    }
-
-    public function me(Request $request): JsonResponse
-    {
-        $user = $request->user();
-
-        return response()->json([
-            'data' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'status' => $user->status,
-            ]
-        ]);
+        return (new UserResource($user))
+            ->additional([
+                'message' => '會員登入成功'
+            ])
+            ->response();
     }
 
     public function logout(Request $request): JsonResponse

@@ -13,7 +13,7 @@ class UpdateProfileRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -31,7 +31,7 @@ class UpdateProfileRequest extends FormRequest
                 'max:255',
                 Rule::unique('users', 'email')->ignore($this->user()),
             ],
-            'phone' => ['required', 'string', 'regx:/^09[0-9]{8}$/'],
+            'phone' => ['required', 'string', 'regex:/^09[0-9]{8}$/'],
         ];
     }
 
