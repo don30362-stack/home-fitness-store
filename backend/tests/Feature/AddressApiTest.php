@@ -305,4 +305,98 @@ class AddressApiTest extends TestCase
                 ->count()
         );
     }
+
+    public function test_deleting_default_address_promotes_next_address(): void
+    {
+        $city = City::query()->create([
+            'name' => '臺中市',
+        ]);
+
+        $district = $city->districts()->create([
+            'name' => '西屯區',
+            'postal_code' => '407',
+        ]);
+
+        $user = User::factory()->create();
+
+        $defaultAddress = $user->userAddresses()->create([
+            'district_id' => $district->id,
+            'label' => '住家',
+            'recipient_name' => '王小明',
+            'recipient_phone' => '0912345678',
+            'address' => '臺灣大道三段100號',
+            'is_default' => true,
+        ]);
+
+        $remainingAddress = $user->userAddresses()->create([
+            'district_id' => $district->id,
+            'label' => '公司',
+            'recipient_name' => '王小明',
+            'recipient_phone' => '0987654321',
+            'address' => '臺灣大道三段200號',
+            'is_default' => false,
+        ]);
+
+        $response = $this
+            ->actingAs($user, 'web')
+            ->deleteJson("/api/addresses/{$defaultAddress->id}");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('message', '收件地址刪除成功');
+
+        $this->assertDatabaseMissing('user_addresses', [
+            'id' => $defaultAddress->id,
+        ]);
+
+        $this->assertDatabaseHas('user_addresses', [
+            'id' => $remainingAddress->id,
+            'is_default' => true,
+        ]);
+    }
+
+    public function test_user_cannot_manage_another_users_address(): void
+    {
+        $city = City::query()->create([
+            'name' => '臺中市'
+        ]);
+
+        $district = $city->districts()->create([
+            'name' => '西屯區',
+            'postal_code' => '407'
+        ]);
+
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+
+        $address = $owner->userAddresses()->create([
+            'district_id' => $district->id,
+            'label' => '地址擁有者的住家',
+            'recipient_name' => '王小明',
+            'recipient_phone' => '0912345678',
+            'address' => '臺灣大道三段100號',
+            'is_default' => true,
+        ]);
+
+        $this->actingAs($otherUser, 'web')
+            ->patchJson("/api/addresses/{$address->id}", [
+                'label' => '惡意修改'
+            ])
+            ->assertNotFound();
+
+        $this->actingAs($otherUser, 'web')
+            ->patchJson("/api/addresses/{$address->id}/default")
+            ->assertNotFound();
+
+        $this->actingAs($otherUser, 'web')
+            ->deleteJson("/api/addresses/{$address->id}")
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('user_addresses', [
+            'id' => $address->id,
+            'user_id' => $owner->id,
+            'label' => '地址擁有者的住家',
+            'is_default' => true,
+        ]);
+    }
 }
