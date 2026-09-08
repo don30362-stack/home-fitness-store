@@ -10,6 +10,7 @@
 
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
@@ -42,4 +43,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/me/password', [ProfileController::class, 'updatePassword']);
 
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::get('/addresses', [AddressController::class, 'index']);
+    Route::post('/addresses', [AddressController::class, 'store']);
+    Route::patch('/addresses/{id}', [AddressController::class, 'update'])->whereNumber('id');
+    Route::delete('addresses/{id}', [AddressController::class, 'destroy'])->whereNumber('id');
+    Route::patch('addresses/{id}/default', [AddressController::class, 'setDefault'])->whereNumber('id');
 });

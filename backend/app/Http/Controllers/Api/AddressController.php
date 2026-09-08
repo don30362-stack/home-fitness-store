@@ -48,7 +48,7 @@ class AddressController extends Controller
 
             $validated['is_default'] = $shouldBeDefault;
 
-            return $user()
+            return $user
                 ->userAddresses()
                 ->create($validated);
         });
