@@ -6,16 +6,20 @@ export interface ApiMessageResponse<T> extends ApiResponse<T> {
   message: string
 }
 
+export interface ApiMessageOnlyResponse {
+  message: string
+}
+
 export interface PaginationMeta {
-    current_page: number
-    last_page: number
-    per_page: number
-    total: number
+  current_page: number
+  last_page: number
+  per_page: number
+  total: number
 }
 
 export interface PaginatedApiResponse<T> {
-    data: T[]
-    meta: PaginationMeta
+  data: T[]
+  meta: PaginationMeta
 }
 
 export interface ApiErrorResponse {

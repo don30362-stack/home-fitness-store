@@ -2,8 +2,8 @@ import axios from "axios"
 
 import api from "@/services/api"
 
-import type { ApiResponse, ApiMessageResponse } from "@/types/api"
-import type { LoginPayload, RegisterPayload, User } from "@/types/auth"
+import type { ApiResponse, ApiMessageResponse, ApiMessageOnlyResponse } from "@/types/api"
+import type { LoginPayload, RegisterPayload, User, UpdatePasswordPayload, UpdateProfilePayload } from "@/types/auth"
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
@@ -32,6 +32,18 @@ export const login = async (payload: LoginPayload): Promise<ApiMessageResponse<U
 
 export const getMe = async (): Promise<ApiResponse<User>> => {
     const response = await api.get<ApiResponse<User>>('/me')
+
+    return response.data
+}
+
+export const updateProfile = async (payload: UpdateProfilePayload): Promise<ApiMessageResponse<User>> => {
+    const response = await api.patch<ApiMessageResponse<User>>('/me', payload)
+
+    return response.data
+}
+
+export const updatePassword = async (payload: UpdatePasswordPayload): Promise<ApiMessageOnlyResponse> => {
+    const response = await api.patch<ApiMessageOnlyResponse>('/me/password', payload)
 
     return response.data
 }

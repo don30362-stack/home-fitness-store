@@ -1,9 +1,22 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 
-import { getMe, login as loginApi, logout as logoutApi, register as registerApi } from "@/services/authService";
+import {
+    getMe,
+    login as loginApi,
+    logout as logoutApi,
+    register as registerApi,
+    updatePassword as updatePasswordApi,
+    updateProfile as updateProfileApi,
+} from "@/services/authService";
 
-import type { LoginPayload, RegisterPayload, User } from "@/types/auth";
+import type {
+    LoginPayload,
+    RegisterPayload,
+    User,
+    UpdateProfilePayload,
+    UpdatePasswordPayload,
+} from "@/types/auth";
 
 export const useAuthStore = defineStore('auth', () => {
     const currentUser = ref<User | null>(null)
@@ -38,6 +51,18 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    const updateProfile = async (payload: UpdateProfilePayload) => {
+        const response = await updateProfileApi(payload)
+
+        currentUser.value = response.data
+
+        return response
+    }
+
+    const updatePassword = async (payload: UpdatePasswordPayload) => {
+        return await updatePasswordApi(payload)
+    }
+
     const logout = async () => {
         await logoutApi()
         currentUser.value = null
@@ -50,6 +75,8 @@ export const useAuthStore = defineStore('auth', () => {
         register,
         login,
         restoreAuth,
+        updateProfile,
+        updatePassword,
         logout,
     }
 })
