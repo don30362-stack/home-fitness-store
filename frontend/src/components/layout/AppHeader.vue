@@ -49,7 +49,7 @@ const handleLogout = async () => {
                     </RouterLink>
 
                     <template v-if="authStore.isAuthenticated">
-                        <RouterLink class="nav-link" :to="{ name: 'member' }">
+                        <RouterLink class="nav-link" :to="{ name: 'member-profile' }">
                             {{ authStore.currentUser?.name }}
                         </RouterLink>
 
