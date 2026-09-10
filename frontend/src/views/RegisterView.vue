@@ -89,7 +89,7 @@ const handleRegister = async () => {
                     <div class="mb-3">
                         <label for="email" class="form-label">電子郵件</label>
 
-                        <input id="eamil" v-model="email" type="email" class="form-control"
+                        <input id="email" v-model="email" type="email" class="form-control"
                             :class="{ 'is-invalid': fieldErrors.email }" maxlength="255" autocomplete="email" required>
 
                         <div v-if="fieldErrors.email" class="invalid-feedback">

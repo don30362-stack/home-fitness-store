@@ -38,7 +38,7 @@ class UpdateProfileRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'phone.regx' => '電話號碼必須是 09 開頭的 10 位數字。',
+            'phone.regex' => '電話號碼必須是 09 開頭的 10 位數字。',
         ];
     }
 }

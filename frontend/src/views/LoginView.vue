@@ -25,7 +25,7 @@ const handleLogin = async () => {
     }
 
     errorMessage.value = ''
-    isSubmitting.value = false
+    isSubmitting.value = true
 
     try {
         await authStore.login({
@@ -38,7 +38,7 @@ const handleLogin = async () => {
         await router.push(redirect)
     } catch (error) {
         if (axios.isAxiosError(error)) {
-            errorMessage.value = error.response?.data?.mseeage ?? '登入失敗，請稍後再試'
+            errorMessage.value = error.response?.data?.message ?? '登入失敗，請稍後再試'
         } else {
             errorMessage.value = '登入失敗，請稍後再試'
         }
@@ -73,7 +73,7 @@ const handleLogin = async () => {
                             autocomplete="current-password" required>
                     </div>
 
-                    <button type="submit" class="btn btn-dark w-100">
+                    <button type="submit" class="btn btn-dark w-100" :disabled="isSubmitting">
                         {{ isSubmitting ? '登入中...' : '登入' }}
                     </button>
                 </form>
