@@ -277,7 +277,7 @@ onMounted(() => {
                     </div>
 
                     <div class="col-md-6">
-                        <label for="postalCode" class="form-control">
+                        <label for="postalCode" class="form-label">
                             郵遞區號
                         </label>
 
@@ -286,7 +286,7 @@ onMounted(() => {
                     </div>
 
                     <div class="col-12">
-                        <label for="detailAddress" class="form-control">
+                        <label for="detailAddress" class="form-label">
                             詳細地址
                         </label>
 

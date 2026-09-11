@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { getAddresses } from '@/services/addressService';
+import { getAddresses, setDefaultAddress, deleteAddress } from '@/services/addressService';
 import type { UserAddress } from '@/types/address';
 import { ref, onMounted } from 'vue';
+import UserAddressForm from '@/components/member/UserAddressForm.vue';
 
 const addresses = ref<UserAddress[]>([])
 const isLoading = ref(true)
 const errorMessage = ref('')
+const successMessage = ref('')
+
+const isFormVisible = ref(false)
+const selectedAddress = ref<UserAddress | null>(null)
+
+const processingAddressId = ref<number | null>(null)
 
 const loadAddresses = async () => {
     isLoading.value = true
@@ -21,6 +28,84 @@ const loadAddresses = async () => {
     }
 }
 
+const openCreateForm = () => {
+    selectedAddress.value = null
+    successMessage.value = ''
+    isFormVisible.value = true
+}
+
+const openEditForm = (address: UserAddress) => {
+    selectedAddress.value = address
+    successMessage.value = ''
+    isFormVisible.value = true
+}
+
+const closeForm = () => {
+    isFormVisible.value = false
+    selectedAddress.value = null
+}
+
+const handleSaved = async (message: string) => {
+    successMessage.value = message
+    closeForm()
+
+    await loadAddresses()
+}
+
+const handleSetDefault = async (address: UserAddress) => {
+    if (address.is_default || processingAddressId.value !== null) {
+        return
+    }
+
+    successMessage.value = ''
+    errorMessage.value = ''
+    processingAddressId.value = address.id
+
+    try {
+        const response = await setDefaultAddress(address.id)
+        successMessage.value = response.message
+        await loadAddresses()
+    } catch {
+        errorMessage.value = '預設地址設定失敗，請稍後再試'
+    } finally {
+        processingAddressId.value = null
+    }
+}
+
+const handleDelete = async (address: UserAddress) => {
+    if (processingAddressId.value !== null) {
+        return
+    }
+
+    const confirmed = window.confirm(
+        `確定要刪除「${address.label}」嗎？`
+    )
+
+    if (!confirmed) {
+        return
+    }
+
+    successMessage.value = ''
+    errorMessage.value = ''
+    processingAddressId.value = address.id
+
+    try {
+        const response = await deleteAddress(address.id)
+
+        if (selectedAddress.value?.id === address.id) {
+            closeForm()
+        }
+
+        successMessage.value = response.message
+
+        await loadAddresses()
+    } catch {
+        errorMessage.value = '地址刪除失敗，請稍後再試'
+    } finally {
+        processingAddressId.value = null
+    }
+}
+
 onMounted(() => { loadAddresses() })
 </script>
 
@@ -28,7 +113,17 @@ onMounted(() => { loadAddresses() })
     <section>
         <div class="d-flex justify-content-between align-content-center mb-4">
             <h2 class="h4 mb-0">地址簿</h2>
+
+            <button v-if="!isFormVisible" type="button" class="btn btn-dark" @click="openCreateForm">
+                新增地址
+            </button>
         </div>
+
+        <div v-if="successMessage" class="alert alert-success" role="alert">
+            {{ successMessage }}
+        </div>
+
+        <UserAddressForm v-if="isFormVisible" :address="selectedAddress" @saved="handleSaved" @cancel="closeForm" />
 
         <div v-if="isLoading" class="text-center py-5">
             <div class="spinner-border text-dark" role="status" aria-label="地址資料載入中"></div>
@@ -56,7 +151,27 @@ onMounted(() => { loadAddresses() })
                             <div>
                                 <div class="d-flex align-items-center gap-2 mb-2">
                                     <h3 class="h6 mb-0">{{ address.label }}</h3>
+
                                     <span v-if="address.is_default" class="badge text-bg-dark">預設地址</span>
+
+                                    <div class="d-flex gap-2">
+                                        <button v-if="!address.is_default" type="button"
+                                            class="btn btn-outline-secondary btn-sm"
+                                            :disabled="processingAddressId === address.id"
+                                            @click="handleSetDefault(address)">
+                                            {{ processingAddressId === address.id ? '設定中...' : '設為預設' }}
+                                        </button>
+
+                                        <button type="button" class="btn btn-outline-dark btn-sm"
+                                            @click="openEditForm(address)">
+                                            編輯
+                                        </button>
+
+                                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                            :disabled="processingAddressId !== null" @click="handleDelete(address)">
+                                            {{ processingAddressId === address.id ? '處理中...' : '刪除' }}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <p class="mb-1">
