@@ -6,22 +6,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class ProductVariant extends Model
+class Cart extends Model
 {
     protected $fillable = [
-        'product_id',
-        'option_name',
-        'option_value',
-        'stock',
-        'status',
+        'user_id',
     ];
-    
-    public function product(): BelongsTo
+
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(User::class);
     }
 
-    public function cartItems(): HasMany
+    public function items(): HasMany
     {
         return $this->hasMany(CartItem::class);
     }
