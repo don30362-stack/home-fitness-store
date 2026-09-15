@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateCartItemRequest extends FormRequest
@@ -12,7 +11,7 @@ class UpdateCartItemRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,7 +22,20 @@ class UpdateCartItemRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'quantity' => [
+                'required',
+                'integer',
+                'min:1',
+            ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'quantity.required' => '請輸入購買數量。',
+            'quantity.integer' => '購買數量必須是整數。',
+            'quantity.min' => '購買數量至少為 1。',
         ];
     }
 }

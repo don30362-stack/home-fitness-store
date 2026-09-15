@@ -12,6 +12,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\CategoryController;
@@ -49,4 +50,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/addresses/{id}', [AddressController::class, 'update'])->whereNumber('id');
     Route::delete('/addresses/{id}', [AddressController::class, 'destroy'])->whereNumber('id');
     Route::patch('/addresses/{id}/default', [AddressController::class, 'setDefault'])->whereNumber('id');
+
+    Route::get('/cart', [CartController::class, 'show']);
+    Route::post('/cart/items', [CartController::class, 'store']);
+    Route::post('/cart/merge', [CartController::class, 'merge']);
+    Route::patch('/cart/items/{id}', [CartController::class, 'update'])
+        ->whereNumber('id');
+    Route::delete('/cart/items/{id}', [CartController::class, 'destroy'])
+        ->whereNumber('id');
+    Route::delete('/cart', [CartController::class, 'clear']);
 });
