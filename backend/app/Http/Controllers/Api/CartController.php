@@ -158,7 +158,8 @@ class CartController extends Controller
                     $cart,
                     $product,
                     $variant,
-                    $guestItem['quantity']
+                    $guestItem['quantity'],
+                    true
                 );
             }
 
@@ -175,7 +176,8 @@ class CartController extends Controller
         Cart $cart,
         Product $product,
         ?ProductVariant $variant,
-        int $quantity
+        int $quantity,
+        bool $useHigherQuantity = false
     ): void {
         if ($product->status !== 'active') {
             throw ValidationException::withMessages([
@@ -203,9 +205,11 @@ class CartController extends Controller
 
         $cartItem = $itemQuery->first();
 
-        $newQuantity =
-            ($cartItem?->quantity ?? 0) +
-            $quantity;
+        $currentQuantity = $cartItem?->quantity ?? 0;
+
+        $newQuantity = $useHigherQuantity
+            ? max($currentQuantity, $quantity)
+            : $currentQuantity + $quantity;
 
         $availableStock = $variant?->stock ?? $product->stock;
 

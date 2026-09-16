@@ -585,10 +585,10 @@ class CartApiTest extends TestCase
                 '訪客購物車已合併。'
             )
             ->assertJsonCount(2, 'data.items')
-            ->assertJsonPath('data.item_count', 6)
+            ->assertJsonPath('data.item_count', 4)
             ->assertJsonFragment([
                 'product_id' => $existingProduct->id,
-                'quantity' => 5,
+                'quantity' => 3,
             ])
             ->assertJsonFragment([
                 'product_id' => $newProduct->id,
@@ -599,7 +599,7 @@ class CartApiTest extends TestCase
             'cart_id' => $cart->id,
             'product_id' => $existingProduct->id,
             'product_variant_id' => null,
-            'quantity' => 5,
+            'quantity' => 3,
         ]);
 
         $this->assertDatabaseHas('cart_items', [
