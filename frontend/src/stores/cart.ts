@@ -3,13 +3,25 @@ import { defineStore } from 'pinia'
 
 import type {
     AddGuestCartItemPayload,
+    Cart,
     CartItemProduct,
     GuestCartItem,
+    StoreCartItemPayload,
+    UpdateCartItemPayload,
 } from '@/types/cart'
 import type {
     Product,
     ProductVariant,
 } from '@/types/product'
+
+import {
+    addCartItem as addCartItemApi,
+    clearCart as clearCartApi,
+    getCart,
+    mergeCart as mergeCartApi,
+    removeCartItem as removeCartItemApi,
+    updateCartItem as updateCartItemApi,
+} from '@/services/cartService'
 
 const GUEST_CART_STORAGE_KEY =
     'home-fitness-store-guest-cart'
@@ -87,6 +99,27 @@ export const useCartStore = defineStore('cart', () => {
     const guestItems = ref<GuestCartItem[]>(
         loadGuestItems(),
     )
+    const memberCart = ref<Cart | null>(null)
+    const isMemberCartLoading = ref(false)
+
+    const memberItems = computed(() => {
+        return memberCart.value?.items ?? []
+    })
+
+    const memberItemCount = computed(() => {
+        return memberCart.value?.item_count ?? 0
+    })
+
+    const memberSubtotal = computed(() => {
+        return memberCart.value?.subtotal ?? '0.00'
+    })
+
+    const hasUnavailableMemberItems = computed(() => {
+        return (
+            memberCart.value?.has_unavailable_items ??
+            false
+        )
+    })
 
     const guestItemCount = computed(() => {
         return guestItems.value.reduce(
@@ -253,14 +286,115 @@ export const useCartStore = defineStore('cart', () => {
         )
     }
 
+    const fetchMemberCart = async () => {
+        isMemberCartLoading.value = true
+
+        try {
+            const response = await getCart()
+
+            memberCart.value = response.data
+
+            return response
+        } finally {
+            isMemberCartLoading.value = false
+        }
+    }
+
+    const addMemberItem = async (
+        payload: StoreCartItemPayload,
+    ) => {
+        const response = await addCartItemApi(payload)
+
+        memberCart.value = response.data
+
+        return response
+    }
+
+    const updateMemberItem = async (
+        itemId: number,
+        payload: UpdateCartItemPayload,
+    ) => {
+        const response = await updateCartItemApi(
+            itemId,
+            payload,
+        )
+
+        memberCart.value = response.data
+
+        return response
+    }
+
+    const removeMemberItem = async (itemId: number) => {
+        const response = await removeCartItemApi(itemId)
+
+        memberCart.value = response.data
+
+        return response
+    }
+
+    const clearMemberCart = async () => {
+        const response = await clearCartApi()
+
+        memberCart.value = response.data
+
+        return response
+    }
+
+    const mergeGuestCart = async () => {
+        if (guestItems.value.length === 0) {
+            return await fetchMemberCart()
+        }
+        const response = await mergeCartApi({
+            items: guestItems.value.map((item) => {
+                return {
+                    product_id: item.product_id,
+                    product_variant_id:
+                        item.product_variant_id,
+                    quantity: item.quantity,
+                }
+            }),
+        })
+
+        memberCart.value = response.data
+
+        // 必須等後端合併成功後才能清除訪客購物車。
+        clearGuestCart()
+
+        return response
+    }
+
+    const resetMemberCart = () => {
+        memberCart.value = null
+    }
+
     return {
+        // 訪客購物車狀態
         guestItems,
         guestItemCount,
         guestSubtotal,
         hasUnavailableGuestItems,
+
+        // 訪客購物車操作
         addGuestItem,
         updateGuestItem,
         removeGuestItem,
         clearGuestCart,
+
+        // 會員購物車狀態
+        memberCart,
+        memberItems,
+        memberItemCount,
+        memberSubtotal,
+        hasUnavailableMemberItems,
+        isMemberCartLoading,
+
+        // 會員購物車操作
+        fetchMemberCart,
+        addMemberItem,
+        updateMemberItem,
+        removeMemberItem,
+        clearMemberCart,
+        mergeGuestCart,
+        resetMemberCart,
     }
 })

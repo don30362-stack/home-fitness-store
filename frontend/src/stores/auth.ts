@@ -1,5 +1,6 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
+import { useCartStore } from '@/stores/cart'
 
 import {
     getMe,
@@ -21,6 +22,8 @@ import type {
 export const useAuthStore = defineStore('auth', () => {
     const currentUser = ref<User | null>(null)
     const isAuthInitialized = ref(false)
+
+    const cartStore = useCartStore()
 
     const isAuthenticated = computed(() => {
         return currentUser.value !== null
@@ -44,8 +47,16 @@ export const useAuthStore = defineStore('auth', () => {
         try {
             const response = await getMe()
             currentUser.value = response.data
+
+            try {
+                await cartStore.fetchMemberCart()
+            } catch {
+                // 購物車載入失敗不能讓會員被判定為未登入。
+                cartStore.resetMemberCart()
+            }
         } catch {
             currentUser.value = null
+            cartStore.resetMemberCart()
         } finally {
             isAuthInitialized.value = true
         }
@@ -66,6 +77,8 @@ export const useAuthStore = defineStore('auth', () => {
     const logout = async () => {
         await logoutApi()
         currentUser.value = null
+
+        cartStore.resetMemberCart()
     }
 
     return {

@@ -8,8 +8,12 @@ import type { Product, ProductListItem, ProductVariant } from '@/types/product'
 import type { ApiErrorResponse } from '@/types/api'
 import ProductGallery from '@/components/product/ProductGallery.vue'
 import ProductCard from '@/components/product/ProductCard.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useCartStore } from '@/stores/cart'
 
 const route = useRoute()
+const authStore = useAuthStore()
+const cartStore = useCartStore()
 
 const product = ref<Product | null>(null)
 const relatedProducts = ref<ProductListItem[]>([])
@@ -17,6 +21,10 @@ const selectedVariant = ref<ProductVariant | null>(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const quantity = ref(1)
+
+const isAddingToCart = ref(false)
+const cartSuccessMessage = ref('')
+const cartErrorMessage = ref('')
 
 const hasVariants = computed(() => {
     return (product.value?.variants.length ?? 0) > 0
@@ -38,11 +46,44 @@ const isOutOfStock = computed(() => {
     return availableStock.value === 0
 })
 
+const isAddToCartDisabled = computed(() => {
+    return (
+        isAddingToCart.value ||
+        product.value?.status !== 'active' ||
+        isOutOfStock.value ||
+        (hasVariants.value && selectedVariant.value === null)
+    )
+})
+
+const addToCartButtonText = computed(() => {
+    if (isAddingToCart.value) {
+        return '加入中...'
+    }
+
+    if (product.value?.status !== 'active') {
+        return '商品已下架'
+    }
+
+    if (hasVariants.value && selectedVariant.value === null) {
+        return '請先選擇規格'
+    }
+
+    if (isOutOfStock.value) {
+        return '商品缺貨'
+    }
+
+    return '加入購物車'
+})
+
 const fetchProduct = async () => {
     isLoading.value = true
     errorMessage.value = ''
     product.value = null
     relatedProducts.value = []
+    selectedVariant.value = null
+    quantity.value = 1
+    cartSuccessMessage.value = ''
+    cartErrorMessage.value = ''
 
     try {
         const id = route.params.id
@@ -83,6 +124,71 @@ const decreaseQuantity = () => {
 const increaseQuantity = () => {
     if (quantity.value < availableStock.value) {
         quantity.value++
+    }
+}
+
+const handleAddToCart = async () => {
+    if (
+        product.value === null ||
+        isAddToCartDisabled.value
+    ) {
+        return
+    }
+
+    cartSuccessMessage.value = ''
+    cartErrorMessage.value = ''
+    isAddingToCart.value = true
+
+    try {
+        if (authStore.isAuthenticated) {
+            const response = await cartStore.addMemberItem({
+                product_id: product.value.id,
+                product_variant_id:
+                    selectedVariant.value?.id ?? null,
+                quantity: quantity.value,
+            })
+
+            cartSuccessMessage.value =
+                response.message ?? '商品已加入購物車。'
+        } else {
+            cartStore.addGuestItem({
+                product: product.value,
+                variant: selectedVariant.value,
+                quantity: quantity.value,
+            })
+
+            cartSuccessMessage.value =
+                '商品已加入購物車。'
+        }
+
+        quantity.value = 1
+    } catch (error) {
+        if (isAxiosError<ApiErrorResponse>(error)) {
+            const responseData = error.response?.data
+
+            const firstFieldError =
+                Object.values(
+                    responseData?.errors ?? {},
+                )[0]?.[0]
+
+            cartErrorMessage.value =
+                firstFieldError ??
+                responseData?.message ??
+                '加入購物車失敗，請稍後再試。'
+
+            return
+        }
+
+        if (error instanceof Error) {
+            cartErrorMessage.value = error.message
+
+            return
+        }
+
+        cartErrorMessage.value =
+            '加入購物車失敗，請稍後再試。'
+    } finally {
+        isAddingToCart.value = false
     }
 }
 
@@ -189,9 +295,17 @@ watch(
                     </div>
 
                     <div class="mt-4">
-                        <button type="button" class="btn btn-dark btn-lg w-100"
-                            :disabled="isOutOfStock || (hasVariants && !selectedVariant)">
-                            {{ hasVariants && !selectedVariant ? '請先選擇規格' : isOutOfStock ? '商品缺貨' : '加入購物車' }}
+                        <div v-if="cartSuccessMessage" class="alert alert-success" role="alert">
+                            {{ cartSuccessMessage }}
+                        </div>
+
+                        <div v-if="cartErrorMessage" class="alert alert-danger" role="alert">
+                            {{ cartErrorMessage }}
+                        </div>
+
+                        <button type="button" class="btn btn-dark btn-lg w-100" :disabled="isAddToCartDisabled"
+                            @click="handleAddToCart">
+                            {{ addToCartButtonText }}
                         </button>
                     </div>
                 </div>

@@ -5,10 +5,12 @@ import { useRoute, useRouter } from 'vue-router'
 import type { ApiErrorResponse } from '@/types/api'
 
 import { useAuthStore } from '@/stores/auth'
+import { useCartStore } from '@/stores/cart'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const cartStore = useCartStore()
 
 const email = ref('')
 const password = ref('')
@@ -33,6 +35,21 @@ const handleLogin = async () => {
       email: email.value,
       password: password.value,
     })
+
+    try {
+      await cartStore.mergeGuestCart()
+    } catch {
+      // 此時帳號已登入成功，只是購物車同步失敗。
+      // 訪客 localStorage 購物車仍然保留。
+      await router.push({
+        name: 'cart',
+        query: {
+          cart_sync: 'failed',
+        },
+      })
+
+      return
+    }
 
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/member'
 
@@ -78,26 +95,13 @@ const handleLogin = async () => {
         <form @submit.prevent="handleLogin">
           <div class="mb-3">
             <label for="email" class="form-label">電子郵件</label>
-            <input
-              v-model.trim="email"
-              type="email"
-              id="email"
-              class="form-control"
-              autocomplete="email"
-              required
-            />
+            <input v-model.trim="email" type="email" id="email" class="form-control" autocomplete="email" required />
           </div>
 
           <div class="mb-4">
             <label for="password" class="form-label">密碼</label>
-            <input
-              v-model="password"
-              type="password"
-              id="password"
-              class="form-control"
-              autocomplete="current-password"
-              required
-            />
+            <input v-model="password" type="password" id="password" class="form-control" autocomplete="current-password"
+              required />
           </div>
 
           <button type="submit" class="btn btn-dark w-100" :disabled="isSubmitting">
