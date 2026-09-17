@@ -1,20 +1,69 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { getAddresses } from '@/services/addressService'
+import { getCities, getDistricts } from '@/services/locationService'
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
 
 import type { UserAddress } from '@/types/address'
-import type { CheckoutForm } from '@/types/checkout'
+import type { CheckoutForm, CheckoutPayload } from '@/types/checkout'
+import type { City, District } from '@/types/location'
 
 const authStore = useAuthStore()
 const cartStore = useCartStore()
 
+const shippingFee = 100
+
 const addresses = ref<UserAddress[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const addressMode = ref<'saved' | 'new'>('saved')
+const selectedAddressId = ref<number | null>(null)
+const cities = ref<City[]>([])
+const districts = ref<District[]>([])
+const selectedCityId = ref<number | null>(null)
+const isDistrictsLoading = ref(false)
+const addressErrorMessage = ref('')
+const sameAsPurchaser = ref(false)
+const isSubmitting = ref(false)
+const preparedPayload = ref<CheckoutPayload | null>(null)
+const submitErrorMessage = ref('')
+const submitSuccessMessage = ref('')
+
+const selectedAddress = computed(() => {
+    return (
+        addresses.value.find(
+            (address) =>
+                address.id === selectedAddressId.value,
+        ) ?? null
+    )
+})
+
+const selectedDistrict = computed(() => {
+    return (
+        districts.value.find(
+            (district) =>
+                district.id ===
+                form.recipient.district_id,
+        ) ?? null
+    )
+})
+
+const checkoutSubtotal = computed(() => {
+    return Number(cartStore.memberSubtotal)
+})
+
+const totalAmount = computed(() => {
+    return checkoutSubtotal.value + shippingFee
+})
+
+const formatCurrency = (
+    value: string | number,
+): string => {
+    return Number(value).toLocaleString('zh-TW')
+}
 
 const form = reactive<CheckoutForm>({
     purchaser: {
@@ -39,6 +88,188 @@ const applyAddress = (address: UserAddress) => {
     form.recipient.address = address.address
 }
 
+const clearRecipient = () => {
+    form.recipient.name = ''
+    form.recipient.phone = ''
+    form.recipient.district_id = null
+    form.recipient.address = ''
+}
+
+const handleSavedAddressChange = () => {
+    if (selectedAddress.value === null) {
+        clearRecipient()
+        return
+    }
+
+    applyAddress(selectedAddress.value)
+}
+
+const handleCityChange = async () => {
+    form.recipient.district_id = null
+    districts.value = []
+    addressErrorMessage.value = ''
+
+    if (selectedCityId.value === null) {
+        return
+    }
+
+    isDistrictsLoading.value = true
+
+    try {
+        const response = await getDistricts(
+            selectedCityId.value,
+        )
+
+        districts.value = response.data
+    } catch {
+        addressErrorMessage.value =
+            '行政區資料載入失敗，請稍後再試。'
+    } finally {
+        isDistrictsLoading.value = false
+    }
+}
+
+const handleSameAsPurchaserChange = () => {
+    if (sameAsPurchaser.value) {
+        form.recipient.name = form.purchaser.name
+        form.recipient.phone = form.purchaser.phone
+        return
+    }
+
+    form.recipient.name = ''
+    form.recipient.phone = ''
+}
+
+const handleAddressModeChange = () => {
+    addressErrorMessage.value = ''
+    sameAsPurchaser.value = false
+    selectedCityId.value = null
+    districts.value = []
+
+    if (addressMode.value === 'saved') {
+        handleSavedAddressChange()
+        return
+    }
+
+    clearRecipient()
+}
+
+const buildCheckoutPayload =
+    (): CheckoutPayload | null => {
+        const purchaserName =
+            form.purchaser.name.trim()
+        const purchaserPhone =
+            form.purchaser.phone.trim()
+        const purchaserEmail =
+            form.purchaser.email.trim()
+
+        const recipientName =
+            form.recipient.name.trim()
+        const recipientPhone =
+            form.recipient.phone.trim()
+        const recipientAddress =
+            form.recipient.address.trim()
+
+        const districtId =
+            form.recipient.district_id
+        const paymentMethod =
+            form.payment_method
+
+        submitErrorMessage.value = ''
+
+        if (
+            purchaserName === '' ||
+            purchaserPhone === '' ||
+            purchaserEmail === ''
+        ) {
+            submitErrorMessage.value =
+                '請完整填寫訂購人資料。'
+            return null
+        }
+
+        if (!/^09[0-9]{8}$/.test(purchaserPhone)) {
+            submitErrorMessage.value =
+                '請輸入正確的訂購人手機號碼。'
+            return null
+        }
+
+        if (
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+                purchaserEmail,
+            )
+        ) {
+            submitErrorMessage.value =
+                '請輸入正確的 Email。'
+            return null
+        }
+
+        if (
+            recipientName === '' ||
+            recipientPhone === '' ||
+            districtId === null ||
+            recipientAddress === ''
+        ) {
+            submitErrorMessage.value =
+                '請完整填寫收件人與收件地址。'
+            return null
+        }
+
+        if (!/^09[0-9]{8}$/.test(recipientPhone)) {
+            submitErrorMessage.value =
+                '請輸入正確的收件人手機號碼。'
+            return null
+        }
+
+        if (paymentMethod === '') {
+            submitErrorMessage.value =
+                '請選擇付款方式。'
+            return null
+        }
+
+        return {
+            purchaser: {
+                name: purchaserName,
+                phone: purchaserPhone,
+                email: purchaserEmail,
+            },
+            recipient: {
+                name: recipientName,
+                phone: recipientPhone,
+                district_id: districtId,
+                address: recipientAddress,
+            },
+            shipping_method:
+                form.shipping_method,
+            payment_method: paymentMethod,
+        }
+    }
+
+const handleSubmit = () => {
+    if (isSubmitting.value) {
+        return
+    }
+
+    submitErrorMessage.value = ''
+    submitSuccessMessage.value = ''
+    preparedPayload.value = null
+
+    const payload = buildCheckoutPayload()
+
+    if (payload === null) {
+        return
+    }
+
+    isSubmitting.value = true
+
+    try {
+        preparedPayload.value = payload
+        submitSuccessMessage.value =
+            '結帳資料驗證完成。下一階段將正式建立訂單。'
+    } finally {
+        isSubmitting.value = false
+    }
+}
+
 const loadCheckoutData = async () => {
     errorMessage.value = ''
 
@@ -56,13 +287,18 @@ const loadCheckoutData = async () => {
     isLoading.value = true
 
     try {
-        const [cartResponse, addressResponse] =
-            await Promise.all([
-                cartStore.fetchMemberCart(),
-                getAddresses(),
-            ])
+        const [
+            cartResponse,
+            addressResponse,
+            cityResponse,
+        ] = await Promise.all([
+            cartStore.fetchMemberCart(),
+            getAddresses(),
+            getCities(),
+        ])
 
         addresses.value = addressResponse.data
+        cities.value = cityResponse.data
 
         if (cartResponse.data.items.length === 0) {
             errorMessage.value =
@@ -84,7 +320,10 @@ const loadCheckoutData = async () => {
             null
 
         if (defaultAddress !== null) {
+            selectedAddressId.value = defaultAddress.id
             applyAddress(defaultAddress)
+        } else {
+            addressMode.value = 'new'
         }
     } catch {
         errorMessage.value =
@@ -93,6 +332,33 @@ const loadCheckoutData = async () => {
         isLoading.value = false
     }
 }
+
+watch(
+    [
+        () => form.purchaser.name,
+        () => form.purchaser.phone,
+    ],
+    ([name, phone]) => {
+        if (!sameAsPurchaser.value) {
+            return
+        }
+
+        form.recipient.name = name
+        form.recipient.phone = phone
+    },
+)
+
+watch(
+    form,
+    () => {
+        preparedPayload.value = null
+        submitErrorMessage.value = ''
+        submitSuccessMessage.value = ''
+    },
+    {
+        deep: true,
+    },
+)
 
 onMounted(() => {
     loadCheckoutData()
@@ -123,24 +389,422 @@ onMounted(() => {
             </RouterLink>
         </div>
 
-        <div v-else class="card">
-            <div class="card-body">
-                <h2 class="h5">
-                    結帳資料載入完成
-                </h2>
+        <form v-else novalidate @submit.prevent="handleSubmit">
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <section class="card">
+                        <div class="card-body p-4">
+                            <h2 class="h4 mb-2">
+                                訂購人資料
+                            </h2>
 
-                <p class="mb-1">
-                    訂購人：{{ form.purchaser.name }}
-                </p>
+                            <p class="text-muted mb-4">
+                                已自動帶入會員資料。本次修改只套用於這筆訂單，
+                                不會修改會員基本資料。
+                            </p>
 
-                <p class="mb-1">
-                    購物車數量：{{ cartStore.memberItemCount }}
-                </p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="purchaserName" class="form-label">
+                                        姓名
+                                    </label>
 
-                <p class="mb-0">
-                    地址簿：{{ addresses.length }} 筆
-                </p>
+                                    <input id="purchaserName" v-model.trim="form.purchaser.name" type="text"
+                                        class="form-control" maxlength="50" autocomplete="name" required>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="purchaserPhone" class="form-label">
+                                        手機號碼
+                                    </label>
+
+                                    <input id="purchaserPhone" v-model.trim="form.purchaser.phone" type="tel"
+                                        class="form-control" maxlength="20" pattern="09[0-9]{8}" inputmode="numeric"
+                                        autocomplete="tel" placeholder="例如：0912345678" required>
+                                </div>
+
+                                <div class="col-12">
+                                    <label for="purchaserEmail" class="form-label">
+                                        Email
+                                    </label>
+
+                                    <input id="purchaserEmail" v-model.trim="form.purchaser.email" type="email"
+                                        class="form-control" maxlength="255" autocomplete="email" required>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="card mt-4">
+                        <div class="card-body p-4">
+                            <h2 class="h4 mb-4">
+                                收件人資料
+                            </h2>
+
+                            <div class="d-flex flex-column gap-2 mb-4">
+                                <div class="form-check">
+                                    <input id="useSavedAddress" v-model="addressMode" class="form-check-input"
+                                        type="radio" value="saved" :disabled="addresses.length === 0"
+                                        @change="handleAddressModeChange">
+
+                                    <label class="form-check-label" for="useSavedAddress">
+                                        使用地址簿
+                                    </label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input id="useNewAddress" v-model="addressMode" class="form-check-input"
+                                        type="radio" value="new" @change="handleAddressModeChange">
+
+                                    <label class="form-check-label" for="useNewAddress">
+                                        填寫新地址
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div v-if="addressMode === 'saved'">
+                                <label for="savedAddress" class="form-label">
+                                    選擇收件地址
+                                </label>
+
+                                <select id="savedAddress" v-model.number="selectedAddressId" class="form-select"
+                                    required @change="handleSavedAddressChange">
+                                    <option :value="null" disabled>
+                                        請選擇地址
+                                    </option>
+
+                                    <option v-for="address in addresses" :key="address.id" :value="address.id">
+                                        {{ address.label }}－
+                                        {{ address.recipient_name }}
+                                    </option>
+                                </select>
+
+                                <div v-if="selectedAddress" class="border rounded p-3 mt-3 bg-light">
+                                    <p class="fw-semibold mb-1">
+                                        {{ selectedAddress.recipient_name }}
+                                        {{ selectedAddress.recipient_phone }}
+                                    </p>
+
+                                    <p class="mb-0">
+                                        {{ selectedAddress.district.postal_code }}
+                                        {{ selectedAddress.district.city.name }}
+                                        {{ selectedAddress.district.name }}
+                                        {{ selectedAddress.address }}
+                                    </p>
+
+                                    <span v-if="selectedAddress.is_default" class="badge text-bg-dark mt-2">
+                                        預設地址
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div v-else>
+                                <div v-if="addressErrorMessage" class="alert alert-danger" role="alert">
+                                    {{ addressErrorMessage }}
+                                </div>
+
+                                <div class="form-check mb-4">
+                                    <input id="sameAsPurchaser" v-model="sameAsPurchaser" class="form-check-input"
+                                        type="checkbox" @change="handleSameAsPurchaserChange">
+
+                                    <label for="sameAsPurchaser" class="form-check-label">
+                                        收件人姓名與電話同訂購人
+                                    </label>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="recipientName" class="form-label">
+                                            收件人姓名
+                                        </label>
+
+                                        <input id="recipientName" v-model.trim="form.recipient.name" type="text"
+                                            class="form-control" maxlength="50" autocomplete="name" required>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="recipientPhone" class="form-label">
+                                            收件人手機
+                                        </label>
+
+                                        <input id="recipientPhone" v-model.trim="form.recipient.phone" type="tel"
+                                            class="form-control" maxlength="20" pattern="09[0-9]{8}" inputmode="numeric"
+                                            autocomplete="tel" placeholder="例如：0912345678" required>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label for="recipientCity" class="form-label">
+                                            縣市
+                                        </label>
+
+                                        <select id="recipientCity" v-model="selectedCityId" class="form-select" required
+                                            @change="handleCityChange">
+                                            <option :value="null">
+                                                請選擇縣市
+                                            </option>
+
+                                            <option v-for="city in cities" :key="city.id" :value="city.id">
+                                                {{ city.name }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label for="recipientDistrict" class="form-label">
+                                            行政區
+                                        </label>
+
+                                        <select id="recipientDistrict" v-model="form.recipient.district_id"
+                                            class="form-select" :disabled="selectedCityId === null ||
+                                                isDistrictsLoading
+                                                " required>
+                                            <option :value="null">
+                                                {{
+                                                    isDistrictsLoading
+                                                        ? '載入中...'
+                                                        : '請選擇行政區'
+                                                }}
+                                            </option>
+
+                                            <option v-for="district in districts" :key="district.id"
+                                                :value="district.id">
+                                                {{ district.name }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label for="recipientPostalCode" class="form-label">
+                                            郵遞區號
+                                        </label>
+
+                                        <input id="recipientPostalCode" :value="selectedDistrict?.postal_code ?? ''
+                                            " type="text" class="form-control" readonly>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label for="recipientAddress" class="form-label">
+                                            詳細地址
+                                        </label>
+
+                                        <input id="recipientAddress" v-model.trim="form.recipient.address" type="text"
+                                            class="form-control" maxlength="255" autocomplete="street-address"
+                                            placeholder="路、街、巷、弄、號、樓" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="card mt-4">
+                        <div class="card-body p-4">
+                            <h2 class="h4 mb-4">
+                                配送方式
+                            </h2>
+
+                            <label class="border rounded p-3 d-flex align-items-center gap-3" for="homeDelivery">
+                                <input id="homeDelivery" v-model="form.shipping_method" class="form-check-input mt-0"
+                                    type="radio" value="home_delivery" required>
+
+                                <span class="flex-grow-1">
+                                    <span class="d-block fw-semibold">
+                                        宅配
+                                    </span>
+
+                                    <span class="d-block text-muted small">
+                                        配送至指定收件地址
+                                    </span>
+                                </span>
+
+                                <span class="fw-semibold">
+                                    NT$ {{ shippingFee }}
+                                </span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="card mt-4">
+                        <div class="card-body p-4">
+                            <h2 class="h4 mb-4">
+                                付款方式
+                            </h2>
+
+                            <div class="d-flex flex-column gap-3">
+                                <label class="border rounded p-3 d-flex align-items-start gap-3" for="cashOnDelivery">
+                                    <input id="cashOnDelivery" v-model="form.payment_method"
+                                        class="form-check-input mt-1" type="radio" value="cod" required>
+
+                                    <span>
+                                        <span class="d-block fw-semibold">
+                                            貨到付款
+                                        </span>
+
+                                        <span class="d-block text-muted small">
+                                            商品送達時再支付款項
+                                        </span>
+                                    </span>
+                                </label>
+
+                                <label class="border rounded p-3 d-flex align-items-start gap-3" for="mockCreditCard">
+                                    <input id="mockCreditCard" v-model="form.payment_method"
+                                        class="form-check-input mt-1" type="radio" value="mock_credit_card" required>
+
+                                    <span>
+                                        <span class="d-block fw-semibold">
+                                            模擬信用卡付款
+                                        </span>
+
+                                        <span class="d-block text-muted small">
+                                            僅供專題展示，不會進行真實扣款
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div v-if="
+                                form.payment_method ===
+                                'mock_credit_card'
+                            " class="alert alert-info mt-3 mb-0" role="alert">
+                                模擬付款將於送出訂單時執行，
+                                不需要輸入真實信用卡資料。
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <aside class="col-lg-4">
+                    <div class="card">
+                        <div class="card-body p-4">
+                            <h2 class="h4 mb-3">
+                                訂單摘要
+                            </h2>
+
+                            <div>
+                                <article v-for="item in cartStore.memberItems" :key="item.id"
+                                    class="py-3 border-bottom">
+                                    <div class="d-flex gap-3">
+                                        <RouterLink :to="{
+                                            name: 'product-detail',
+                                            params: {
+                                                id: item.product_id,
+                                            },
+                                        }" class="flex-shrink-0">
+                                            <img v-if="item.product.primary_image" :src="item.product.primary_image
+                                                .image_url
+                                                " :alt="item.product.name" class="checkout-item-image rounded border">
+
+                                            <div v-else
+                                                class="checkout-item-image rounded border bg-light d-flex align-items-center justify-content-center text-muted small">
+                                                無圖片
+                                            </div>
+                                        </RouterLink>
+
+                                        <div class="flex-grow-1">
+                                            <RouterLink :to="{
+                                                name: 'product-detail',
+                                                params: {
+                                                    id: item.product_id,
+                                                },
+                                            }" class="text-dark text-decoration-none">
+                                                <h3 class="h6 mb-1">
+                                                    {{ item.product.name }}
+                                                </h3>
+                                            </RouterLink>
+
+                                            <p v-if="item.variant" class="text-muted small mb-1">
+                                                {{ item.variant.option_name }}：
+                                                {{ item.variant.option_value }}
+                                            </p>
+
+                                            <p class="text-muted small mb-1">
+                                                數量：{{ item.quantity }}
+                                            </p>
+
+                                            <p class="fw-semibold mb-0">
+                                                NT$
+                                                {{
+                                                    formatCurrency(
+                                                        item.subtotal,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </article>
+                            </div>
+
+                            <div class="pt-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>
+                                        商品小計
+                                    </span>
+
+                                    <span>
+                                        NT$
+                                        {{
+                                            formatCurrency(
+                                                checkoutSubtotal,
+                                            )
+                                        }}
+                                    </span>
+                                </div>
+
+                                <div class="d-flex justify-content-between mb-3">
+                                    <span>
+                                        宅配運費
+                                    </span>
+
+                                    <span>
+                                        NT$ {{ formatCurrency(shippingFee) }}
+                                    </span>
+                                </div>
+
+                                <div class="d-flex justify-content-between border-top pt-3">
+                                    <span class="fw-bold">
+                                        訂單總額
+                                    </span>
+
+                                    <span class="fs-5 fw-bold">
+                                        NT$
+                                        {{ formatCurrency(totalAmount) }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div v-if="submitErrorMessage" class="alert alert-danger mt-4" role="alert">
+                                {{ submitErrorMessage }}
+                            </div>
+
+                            <div v-if="
+                                preparedPayload &&
+                                submitSuccessMessage
+                            " class="alert alert-success mt-4" role="alert">
+                                {{ submitSuccessMessage }}
+                            </div>
+
+                            <button type="submit" class="btn btn-dark w-100 mt-4" :disabled="isSubmitting">
+                                {{
+                                    isSubmitting
+                                ? '處理中...'
+                                : '確認送出訂單'
+                                }}
+                            </button>
+
+                            <RouterLink :to="{ name: 'cart' }" class="btn btn-outline-secondary w-100 mt-2">
+                                返回修改購物車
+                            </RouterLink>
+                        </div>
+                    </div>
+                </aside>
             </div>
-        </div>
+        </form>
     </div>
 </template>
+
+<style scoped>
+.checkout-item-image {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+}
+</style>
