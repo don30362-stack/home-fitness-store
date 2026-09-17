@@ -15,7 +15,7 @@ class ProductVariant extends Model
         'stock',
         'status',
     ];
-    
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
@@ -24,5 +24,10 @@ class ProductVariant extends Model
     public function cartItems(): HasMany
     {
         return $this->hasMany(CartItem::class);
+    }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
     }
 }
