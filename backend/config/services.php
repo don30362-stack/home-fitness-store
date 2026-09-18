@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'mock_credit_card' => [
+        'should_fail' => env(
+            'MOCK_CREDIT_CARD_SHOULD_FAIL',
+            false
+        ),
+    ],
+
 ];

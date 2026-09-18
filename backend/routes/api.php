@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\CategoryController;
@@ -59,4 +60,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/cart/items/{id}', [CartController::class, 'destroy'])
         ->whereNumber('id');
     Route::delete('/cart', [CartController::class, 'clear']);
+
+    Route::post('/checkout', CheckoutController::class);
 });
