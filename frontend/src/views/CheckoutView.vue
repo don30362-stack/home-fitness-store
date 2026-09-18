@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { isAxiosError } from 'axios'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { getAddresses } from '@/services/addressService'
+import { checkout as checkoutApi, } from '@/services/checkoutService'
 import { getCities, getDistricts } from '@/services/locationService'
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
 
 import type { UserAddress } from '@/types/address'
-import type { CheckoutForm, CheckoutPayload } from '@/types/checkout'
+import type { ApiErrorResponse } from '@/types/api'
+import type { CheckoutForm, CheckoutOrder, CheckoutPayload } from '@/types/checkout'
 import type { City, District } from '@/types/location'
 
 const authStore = useAuthStore()
@@ -28,7 +31,7 @@ const isDistrictsLoading = ref(false)
 const addressErrorMessage = ref('')
 const sameAsPurchaser = ref(false)
 const isSubmitting = ref(false)
-const preparedPayload = ref<CheckoutPayload | null>(null)
+const createdOrder = ref<CheckoutOrder | null>(null)
 const submitErrorMessage = ref('')
 const submitSuccessMessage = ref('')
 
@@ -244,14 +247,41 @@ const buildCheckoutPayload =
         }
     }
 
-const handleSubmit = () => {
-    if (isSubmitting.value) {
+const getSubmitErrorMessage = (
+    error: unknown,
+): string => {
+    if (!isAxiosError<ApiErrorResponse>(error)) {
+        return '訂單送出失敗，請稍後再試。'
+    }
+
+    const responseData = error.response?.data
+
+    if (responseData?.errors !== undefined) {
+        const firstValidationMessage =
+            Object.values(responseData.errors)
+                .flat()[0]
+
+        if (firstValidationMessage !== undefined) {
+            return firstValidationMessage
+        }
+    }
+
+    return (
+        responseData?.message ??
+        '訂單送出失敗，請稍後再試。'
+    )
+}
+
+const handleSubmit = async () => {
+    if (
+        isSubmitting.value ||
+        createdOrder.value !== null
+    ) {
         return
     }
 
     submitErrorMessage.value = ''
     submitSuccessMessage.value = ''
-    preparedPayload.value = null
 
     const payload = buildCheckoutPayload()
 
@@ -262,9 +292,18 @@ const handleSubmit = () => {
     isSubmitting.value = true
 
     try {
-        preparedPayload.value = payload
-        submitSuccessMessage.value =
-            '結帳資料驗證完成。下一階段將正式建立訂單。'
+        const response = await checkoutApi(payload)
+
+        createdOrder.value = response.data
+        submitSuccessMessage.value = response.message
+
+        // 後端已成功清空購物車。
+        // 先清除前端舊的會員購物車狀態，
+        // 避免導覽列仍顯示結帳前的數量。
+        cartStore.resetMemberCart()
+    } catch (error: unknown) {
+        submitErrorMessage.value =
+            getSubmitErrorMessage(error)
     } finally {
         isSubmitting.value = false
     }
@@ -351,7 +390,6 @@ watch(
 watch(
     form,
     () => {
-        preparedPayload.value = null
         submitErrorMessage.value = ''
         submitSuccessMessage.value = ''
     },
@@ -387,6 +425,114 @@ onMounted(() => {
             <RouterLink class="btn btn-outline-dark" :to="{ name: 'cart' }">
                 返回購物車
             </RouterLink>
+        </div>
+
+        <div v-else-if="createdOrder !== null" class="row justify-content-center">
+            <div class="col-lg-8">
+                <section class="card shadow-sm">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="text-center mb-4">
+                            <span class="badge text-bg-success mb-3">
+                                訂單成立
+                            </span>
+
+                            <h2 class="h3 mb-3">
+                                感謝您的訂購
+                            </h2>
+
+                            <p class="text-muted mb-0">
+                                {{ submitSuccessMessage }}
+                            </p>
+                        </div>
+
+                        <dl class="row border-top pt-4 mb-0">
+                            <dt class="col-sm-4 mb-2">
+                                訂單編號
+                            </dt>
+
+                            <dd class="col-sm-8 mb-3 font-monospace text-break">
+                                {{ createdOrder.order_no }}
+                            </dd>
+
+                            <dt class="col-sm-4 mb-2">
+                                付款方式
+                            </dt>
+
+                            <dd class="col-sm-8 mb-3">
+                                {{
+                                    createdOrder.payment_method ===
+                                        'cod'
+                                        ? '貨到付款'
+                                        : '模擬信用卡付款'
+                                }}
+                            </dd>
+
+                            <dt class="col-sm-4 mb-2">
+                                付款狀態
+                            </dt>
+
+                            <dd class="col-sm-8 mb-3">
+                                {{
+                                    createdOrder.payment_status ===
+                                        'paid'
+                                        ? '已付款'
+                                        : '尚未付款'
+                                }}
+                            </dd>
+
+                            <dt class="col-sm-4 mb-2">
+                                訂單金額
+                            </dt>
+
+                            <dd class="col-sm-8 mb-3 fw-bold">
+                                NT$
+                                {{
+                                    formatCurrency(
+                                        createdOrder.total_amount,
+                                    )
+                                }}
+                            </dd>
+
+                            <dt class="col-sm-4 mb-2">
+                                收件人
+                            </dt>
+
+                            <dd class="col-sm-8 mb-3">
+                                {{ createdOrder.recipient.name }}
+                            </dd>
+
+                            <dt class="col-sm-4 mb-2">
+                                配送地址
+                            </dt>
+
+                            <dd class="col-sm-8 mb-0">
+                                {{
+                                    createdOrder.recipient
+                                        .postal_code
+                                }}
+                                {{
+                                    createdOrder.recipient.city
+                                }}{{
+                                    createdOrder.recipient
+                                        .district
+                                }}{{
+                                    createdOrder.recipient.address
+                                }}
+                            </dd>
+                        </dl>
+
+                        <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center mt-5">
+                            <RouterLink class="btn btn-dark" :to="{ name: 'products' }">
+                                繼續購物
+                            </RouterLink>
+
+                            <RouterLink class="btn btn-outline-dark" :to="{ name: 'home' }">
+                                返回首頁
+                            </RouterLink>
+                        </div>
+                    </div>
+                </section>
+            </div>
         </div>
 
         <form v-else novalidate @submit.prevent="handleSubmit">
@@ -775,18 +921,14 @@ onMounted(() => {
                                 {{ submitErrorMessage }}
                             </div>
 
-                            <div v-if="
-                                preparedPayload &&
-                                submitSuccessMessage
-                            " class="alert alert-success mt-4" role="alert">
-                                {{ submitSuccessMessage }}
-                            </div>
-
-                            <button type="submit" class="btn btn-dark w-100 mt-4" :disabled="isSubmitting">
+                            <button type="submit" class="btn btn-dark w-100 mt-4"
+                                :disabled="isSubmitting || createdOrder !== null">
                                 {{
-                                    isSubmitting
-                                ? '處理中...'
-                                : '確認送出訂單'
+                                    createdOrder
+                                        ? '訂單已成立'
+                                        : isSubmitting
+                                            ? '處理中...'
+                                            : '確認送出訂單'
                                 }}
                             </button>
 
